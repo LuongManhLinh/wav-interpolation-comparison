@@ -1,0 +1,9 @@
+numpy
+scipy
+matplotlib
+transformers
+torch
+torchaudio
+soundfile
+datasets
+accelerate
