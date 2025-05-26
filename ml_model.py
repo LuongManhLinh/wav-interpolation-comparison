@@ -1,7 +1,8 @@
 import torch.nn as nn
 import torch
 from metrics import split_into_chunks
-
+from safetensors.torch import load_file
+import os
 
 class WaveformAutoencoder(nn.Module):
     def __init__(self, size='small'):
@@ -69,7 +70,6 @@ class WaveformAutoencoder(nn.Module):
 
     def forward(self, **kwargs):
         x = kwargs.get("input_values")
-        print("forwarding", x.shape)
         x = self.encoder(x)
         x = self.decoder(x)
         return {
@@ -86,19 +86,17 @@ class WaveformAutoencoder(nn.Module):
         
         self.eval()
         self.to(device)
-        waveform = torch.tensor(waveform)
-        print(f"Waveform shape: {waveform.shape}")
+        if isinstance(waveform, torch.Tensor):
+            waveform = waveform.clone().to(device)
+        else:
+            waveform = torch.tensor(waveform).to(device)
 
         # Split into chunks
         chunks = split_into_chunks(waveform, chunk_size=chunk_size)
-        print(f"Chunks shape: {chunks.shape}")
         chunks = chunks.unsqueeze(1).to(device)  # add channel dimension: (N, 1, chunk_size)
-        print(f"Chunks shape after unsqueeze: {chunks.shape}")
         outputs = self(input_values=chunks)["logits"]
-        print(f"Outputs shape: {outputs.shape}")
         # Reconstruct:
         reconstructed = outputs.squeeze(1).reshape(-1)[:waveform.shape[-1]]
-        print(f"Reconstructed shape: {reconstructed.shape}")
         
         if type == "noise":
             return reconstructed.cpu()
@@ -106,9 +104,8 @@ class WaveformAutoencoder(nn.Module):
             mask = mask[-1].to(device)
             # reconstucted if mask == 1 else waveform
             wave_clone = waveform.clone().to(device)
-            print("Returning masked_reconstructed.shape", reconstructed.shape, mask.shape, wave_clone.shape)
-            reconstructed = torch.where(mask == 1, reconstructed, wave_clone)
-            return reconstructed.cpu()
+            wave_clone[mask] = reconstructed[mask]
+            return wave_clone.cpu()
     
 
     def model_size_params(self):
@@ -116,3 +113,19 @@ class WaveformAutoencoder(nn.Module):
         Returns the number of parameters in the model.
         """
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
+    @staticmethod
+    def from_pretrained(model_path, size='large'):
+        """
+        Load a pretrained model from the specified path.
+        """
+        # If model is not end with .safetensors, if it is a directory, search for the safetensor file
+        if not model_path.endswith('.safetensors'):
+            files = [f for f in os.listdir(model_path) if f.endswith('.safetensors')]
+            if not files:
+                raise ValueError(f"No .safetensor file found in {model_path}")
+            model_path = os.path.join(model_path, files[0])
+        model = WaveformAutoencoder(size=size)
+        state_dict = load_file(model_path)
+        model.load_state_dict(state_dict)
+        return model

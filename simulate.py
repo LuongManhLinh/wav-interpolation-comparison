@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from wav import TorchWav
-from cubic_spline import interpolate_sound
+from interpolation import interpolate_sound
 import time
 import random
 import torch

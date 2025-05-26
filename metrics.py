@@ -31,7 +31,7 @@ def add_noise(audio, noise_prob_range, noise_var=None):
         noisy[mask] = impulses[mask]
     return noisy
 
-def mask_audio(audio, mask_prob_range, mask_value=-100):
+def mask_audio(audio, mask_prob_range, mask_value=-1):
     """
     Apply a mask to the audio tensor.
 
@@ -61,10 +61,39 @@ def split_into_chunks(waveform: torch.Tensor, chunk_size: int = 16000):
     return chunks 
 
 def compute_snr(clean_signal, reconstructed_signal):
-    signal_power = np.sum(clean_signal ** 2)
-    noise_power = np.sum((clean_signal - reconstructed_signal) ** 2)
-    
+    if not isinstance(clean_signal, torch.Tensor):
+        clean_signal = torch.tensor(clean_signal)
+    else:
+        clean_signal = clean_signal.clone()
+    if not isinstance(reconstructed_signal, torch.Tensor):
+        reconstructed_signal = torch.tensor(reconstructed_signal)
+    else:
+        reconstructed_signal = reconstructed_signal.clone()
+
+    clean_signal *= 32768.0  # Scale to int16 range
+    reconstructed_signal *= 32768.0  # Scale to int16 range
+
+    signal_power = torch.sum(clean_signal ** 2)
+    noise_power = torch.sum((clean_signal - reconstructed_signal) ** 2)
+
     if noise_power == 0:
-        return np.inf  # Perfect reconstruction
-    snr = 10 * np.log10(signal_power / noise_power)
-    return snr
+        print("Warning: Noise power is zero, returning inf SNR.")
+        return float('inf')  # Perfect reconstruction
+    snr = 10 * torch.log10(signal_power / noise_power)
+    return snr.item()
+
+def compute_mse(clean_signal, reconstructed_signal):
+    if not isinstance(clean_signal, torch.Tensor):
+        clean_signal = torch.tensor(clean_signal)
+    else:
+        clean_signal = clean_signal.clone()
+    if not isinstance(reconstructed_signal, torch.Tensor):
+        reconstructed_signal = torch.tensor(reconstructed_signal)
+    else:
+        reconstructed_signal = reconstructed_signal.clone()
+
+    clean_signal *= 32768.0  # Scale to int16 range
+    reconstructed_signal *= 32768.0  # Scale to int16 range
+
+    mse = torch.mean((clean_signal - reconstructed_signal) ** 2)
+    return mse.item()

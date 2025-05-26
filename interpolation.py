@@ -139,7 +139,7 @@ def detect_impulse_spectral(waveform, sample_rate=16000, threshold=3.0, n_fft=51
 
 
 
-def recover_sound(path, recovered_path, second_per_segment=1.0, detecting_method="mad"):
+def recover_noised_sound(path, second_per_segment=1.0, detecting_method="mad"):
     """
     Read a WAV file and recover the sound signal using cubic spline interpolation.
     Parameters:
@@ -163,14 +163,10 @@ def recover_sound(path, recovered_path, second_per_segment=1.0, detecting_method
 
     x_known = torch.where(anomalies == 0)[0]
 
-    y_full = interpolate_sound(samples, x_known, samples_per_segment=int(sample_rate * second_per_segment))
-    if recovered_path:
-        TorchWav.write_wav_data(recovered_path, y_full, sample_rate)
-    return y_full
+    return interpolate_sound(samples, x_known, samples_per_segment=int(sample_rate * second_per_segment))
 
 
-if __name__ == "__main__":
-    recover_sound("data/noisy.wav", "data/recovered2.wav", second_per_segment=1.0, detecting_method="spectral")
+
 
     
     
