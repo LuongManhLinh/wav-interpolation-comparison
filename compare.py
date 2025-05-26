@@ -146,5 +146,5 @@ def compare_packet_loss_recovery(
 
     
 if __name__ == "__main__":
-    audio_path = "data/music.wav" 
+    audio_path = "data/speech.wav" 
     compare_packet_loss_recovery(audio_path, steps=2)
